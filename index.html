@@ -37,6 +37,29 @@
         }
         return gk_fileData[filename] || "";
         }
+
+// Add this just before the closing </script> tag in index.html
+async function testSubmission() {
+    const testData = {
+        action: 'submit',
+        date: '2025-09-17',
+        product: 'TestItem',
+        quantity: '10',
+        price: '5.00',
+        unit: 'Office A',
+        sales: '50.00'
+    };
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: new URLSearchParams(testData)
+        });
+        console.log(await response.text());
+    } catch (error) {
+        console.error('Test submission error:', error);
+    }
+}
+testSubmission();
         </script><!DOCTYPE html>
 <html lang="en">
 <head>
