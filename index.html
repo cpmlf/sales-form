@@ -114,7 +114,7 @@
 
     <script>
         // Replace with your Google Apps Script Web App URL (verify after redeployment)
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwVbFBDmzgCWyWzlGf91oUknRo1yGXNbhzBlVEXuMspKZvaZwIH1rDmDZ0_7qa02kcH1Q/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz68E4-1eGKkfFQ5D9FsUNxqm0bpMTONWfhT63-IIQk2Tt_TTBqThNZR5T2AR_JC4SkAg/exec';
 
         // Handle form submission
         document.getElementById('salesForm').addEventListener('submit', async (e) => {
@@ -178,8 +178,10 @@
                 }
                 data.forEach(row => {
                     const tr = document.createElement('tr');
+                    // Ensure date is displayed as-is
+                    const displayDate = row.date && row.date.match(/^\d{4}-\d{2}-\d{2}$/) ? row.date : 'Invalid date';
                     tr.innerHTML = `
-                        <td>${row.date}</td>
+                        <td>${displayDate}</td>
                         <td>${row.officeName}</td>
                         <td>${row.productName}</td>
                         <td>${row.quantity}</td>
