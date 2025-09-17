@@ -1,0 +1,208 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Data Input Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-container, .table-container {
+            margin-bottom: 20px;
+        }
+        .form-container label {
+            display: inline-block;
+            width: 100px;
+            margin-bottom: 10px;
+        }
+        .form-container input, .form-container select {
+            width: 200px;
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .error {
+            color: red;
+            font-size: 0.9em;
+        }
+        .success {
+            color: green;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2>Sales Data Input</h2>
+        <form id="salesForm">
+            <label for="date">Date:</label>
+            <input type="date" id="date" required><br>
+            <label for="product">Product:</label>
+            <input type="text" id="product" required><br>
+            <label for="quantity">Quantity:</label>
+            <input type="number" id="quantity" min="1" required><br>
+            <label for="price">Price:</label>
+            <input type="number" id="price" min="0.01" step="0.01" required><br>
+            <label for="unit">Unit Name:</label>
+            <select id="unit" required>
+                <option value="" disabled selected>Select Unit</option>
+                <option value="Office A">Office A</option>
+                <option value="Office B">Office B</option>
+                <option value="Office C">Office C</option>
+            </select><br>
+            <button type="submit">Submit</button>
+        </form>
+        <div id="message" class="error"></div>
+    </div>
+
+    <div class="table-container">
+        <h2>Recent Submitted Sales Data</h2>
+        <table id="salesTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Sales</th>
+                    <th>Unit Name</th>
+                </tr>
+            </thead>
+            <tbody id="salesTableBody"></tbody>
+        </table>
+        <p><em>Note: For full data access, view in Google Sheets.</em></p>
+    </div>
+
+    <script>
+        // Replace with your Google Apps Script Web App URL
+        const SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+
+        // Function to check if entry exists for the same date, product, and unit (client-side, for UX)
+        function isDuplicateEntry(date, product, unit) {
+            return false; // We'll rely on server-side check for accuracy
+        }
+
+        // Function to fetch and render recent data
+        async function fetchData() {
+            try {
+                const response = await fetch(SCRIPT_URL + '?action=fetch');
+                const data = await response.json();
+                renderTable(data);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        // Function to render table
+        function renderTable(data) {
+            const tableBody = document.getElementById('salesTableBody');
+            tableBody.innerHTML = '';
+            data.forEach(entry => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${entry.date}</td>
+                    <td>${entry.product}</td>
+                    <td>${entry.quantity}</td>
+                    <td>${entry.price}</td>
+                    <td>${entry.sales}</td>
+                    <td>${entry.unit}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Form submission handler
+        document.getElementById('salesForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = '';
+            messageDiv.className = 'error';
+
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+            data.action = 'submit';
+
+            // Calculate sales client-side
+            const quantity = parseInt(data.quantity);
+            const price = parseFloat(data.price);
+            data.sales = (quantity * price).toFixed(2);
+
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: new URLSearchParams(data)
+                });
+                const result = await response.text();
+
+                if (result.includes('SUCCESS')) {
+                    messageDiv.textContent = 'Data submitted successfully!';
+                    messageDiv.className = 'success';
+                    this.reset();
+                    fetchData(); // Refresh table
+                } else {
+                    messageDiv.textContent = result || 'Submission failed.';
+                }
+            } catch (error) {
+                messageDiv.textContent = 'Error submitting data: ' + error.message;
+            }
+        });
+
+        // Initial data fetch
+        fetchData();
+    </script>
+</body>
+</html>
