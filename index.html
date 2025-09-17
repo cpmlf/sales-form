@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -49,6 +48,10 @@
         th {
             background-color: #f2f2f2;
         }
+        .loading {
+            color: #666;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -68,7 +71,18 @@
         </div>
         <div class="form-group">
             <label for="productName">Product Name:</label>
-            <input type="text" id="productName" placeholder="Enter product" required value="TestItem">
+            <select id="productName" required>
+                <option value="" disabled selected>Select Product</option>
+                <option value="Milk">Milk</option>
+                <option value="Butter">Butter</option>
+                <option value="Ghee">Ghee</option>
+                <option value="Paneer">Paneer</option>
+                <option value="Curd">Curd</option>
+                <option value="SFM">SFM</option>
+                <option value="Lassi">Lassi</option>
+                <option value="Lassi Pkt">Lassi Pkt</option>
+                <option value="Khoya">Khoya</option>
+            </select>
         </div>
         <div class="form-group">
             <label for="quantity">Quantity:</label>
@@ -94,14 +108,13 @@
             </tr>
         </thead>
         <tbody id="recentData">
-            <!-- Populated by fetchRecent() -->
+            <tr><td colspan="5" class="loading">Loading data...</td></tr>
         </tbody>
     </table>
 
     <script>
-        // Replace with your Google Apps Script Web App URL
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxYEGzVfZJlujkoV5ItlA_0bKd53a6Y6N1yqCWH0YLpaoFW8zk9RrjnmgKlQG18nsEo/exec';
-
+        // Replace with your Google Apps Script Web App URL (verify after redeployment)
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwVbFBDmzgCWyWzlGf91oUknRo1yGXNbhzBlVEXuMspKZvaZwIH1rDmDZ0_7qa02kcH1Q/exec';
 
         // Handle form submission
         document.getElementById('salesForm').addEventListener('submit', async (e) => {
@@ -133,8 +146,10 @@
 
                 const result = await response.text();
                 document.getElementById('message').textContent = result === 'Success' ? 'Data submitted successfully!' : result;
-                document.getElementById('salesForm').reset();
-                fetchRecent(); // Refresh table after submission
+                if (result === 'Success') {
+                    document.getElementById('salesForm').reset();
+                    fetchRecent(); // Refresh table after submission
+                }
             } catch (error) {
                 console.error('Submission error:', error);
                 document.getElementById('message').textContent = 'Submission failed: ' + error.message;
@@ -142,15 +157,25 @@
         });
 
         // Fetch and display recent data
-        async function fetchRecent() {
+        async function fetchRecent(retries = 1) {
             try {
-                const response = await fetch(`${SCRIPT_URL}?action=get`);
+                const response = await fetch(`${SCRIPT_URL}?action=get`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+
                 if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error! Status: ${response.status}, Response: ${errorText}`);
                 }
+
                 const data = await response.json();
                 const tbody = document.getElementById('recentData');
-                tbody.innerHTML = ''; // Clear existing rows
+                tbody.innerHTML = ''; // Clear loading or previous data
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5">No data available</td></tr>';
+                    return;
+                }
                 data.forEach(row => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
@@ -164,7 +189,13 @@
                 });
             } catch (error) {
                 console.error('Fetch recent data error:', error);
-                document.getElementById('message').textContent = 'Failed to load recent data: ' + error.message;
+                if (retries > 0) {
+                    console.log('Retrying fetchRecent...');
+                    setTimeout(() => fetchRecent(retries - 1), 1000); // Retry once after 1 second
+                } else {
+                    document.getElementById('message').textContent = 'Failed to load recent data: ' + error.message;
+                    document.getElementById('recentData').innerHTML = '<tr><td colspan="5">Error loading data: Check console for details</td></tr>';
+                }
             }
         }
 
