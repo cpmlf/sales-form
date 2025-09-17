@@ -52,6 +52,9 @@
             color: #666;
             text-align: center;
         }
+        #officeNameInput {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -65,9 +68,13 @@
             <label for="officeName">Office Name:</label>
             <select id="officeName" required>
                 <option value="" disabled selected>Select Office</option>
-                <option value="Office A">Office A</option>
-                <option value="Office B">Office B</option>
+                <option value="MPP_Mandi">MPP_Mandi</option>
+                <option value="MPP_Kangra">MPP_Kangra</option>
+                <option value="MPP_Duttnagar">MPP_Duttnagar</option>
+                <option value="Shimla">Shimla</option>
+                <option value="Others">Others</option>
             </select>
+            <input type="text" id="officeNameInput" placeholder="Enter custom office name" style="display: none;">
         </div>
         <div class="form-group">
             <label for="productName">Product Name:</label>
@@ -114,20 +121,45 @@
 
     <script>
         // Replace with your Google Apps Script Web App URL (verify after redeployment)
+        //const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzc1vkkcsK52N6u9bLE1gl-10OtRCw2GNcnOdj0OWg4yyrnasxB3J5igSxinPmPSXQ-/exec';
+
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz68E4-1eGKkfFQ5D9FsUNxqm0bpMTONWfhT63-IIQk2Tt_TTBqThNZR5T2AR_JC4SkAg/exec';
+
+
+
+        // Toggle officeName input visibility
+        const officeNameSelect = document.getElementById('officeName');
+        const officeNameInput = document.getElementById('officeNameInput');
+        officeNameSelect.addEventListener('change', () => {
+            if (officeNameSelect.value === 'Others') {
+                officeNameSelect.style.display = 'none';
+                officeNameInput.style.display = 'inline-block';
+                officeNameInput.required = true;
+                officeNameInput.focus();
+            } else {
+                officeNameSelect.style.display = 'inline-block';
+                officeNameInput.style.display = 'none';
+                officeNameInput.required = false;
+                officeNameInput.value = '';
+            }
+        });
 
         // Handle form submission
         document.getElementById('salesForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = {
                 date: document.getElementById('date').value,
-                officeName: document.getElementById('officeName').value,
+                officeName: officeNameSelect.value === 'Others' ? officeNameInput.value.trim() : officeNameSelect.value,
                 productName: document.getElementById('productName').value,
                 quantity: parseFloat(document.getElementById('quantity').value),
                 price: parseFloat(document.getElementById('price').value)
             };
 
-            // Validate numeric fields
+            // Validate inputs
+            if (!formData.officeName) {
+                document.getElementById('message').textContent = 'Please select an office or enter a custom office name';
+                return;
+            }
             if (isNaN(formData.quantity) || isNaN(formData.price)) {
                 document.getElementById('message').textContent = 'Please enter valid numbers for Quantity and Price';
                 return;
@@ -148,6 +180,9 @@
                 document.getElementById('message').textContent = result === 'Success' ? 'Data submitted successfully!' : result;
                 if (result === 'Success') {
                     document.getElementById('salesForm').reset();
+                    officeNameSelect.style.display = 'inline-block';
+                    officeNameInput.style.display = 'none';
+                    officeNameInput.value = '';
                     fetchRecent(); // Refresh table after submission
                 }
             } catch (error) {
@@ -178,7 +213,6 @@
                 }
                 data.forEach(row => {
                     const tr = document.createElement('tr');
-                    // Ensure date is displayed as-is
                     const displayDate = row.date && row.date.match(/^\d{4}-\d{2}-\d{2}$/) ? row.date : 'Invalid date';
                     tr.innerHTML = `
                         <td>${displayDate}</td>
